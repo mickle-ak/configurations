@@ -1,0 +1,301 @@
+❯ I think about another solution -   we do 2 separate subagents:                                                                                                                                                                                         
+  1. "maven-compile" - a small subagent, used olny for compile the project.                                                                                                                                                                              
+  It should be alwys used if the main agent (or some other subagent) need to check,if the code can be compiled.                                                                                                                                          
+  It starts maven compile, parses output and returns OK or list of compilation error                                                                                                                                                                     
+  2. "maven-tester" - starts maven tests or starts tests and calculates coverage (depends what caller need)                                                                                                                                              
+  It will be like the current java-build-test-runner                                                                                                                                                                                                     
+                                                                                                                                                                                                                                                         
+  But there is a big difference - instead to allow LLM to start some maven/gradle command, both sould start some prodefined script,                                                                                                                      
+  which check working directory and starts maven with corresponding target (compile or verify).                                                                                                                                                          
+  The agents need then only to check return code, parse output and reposts and create small structured output for a caller agent.                                                                                                                        
+
+● ─────────────────────────────────────────
+  Excellent Architecture Proposal!
+
+  ─────────────────────────────────────────
+
+  My understanding:
+  You want to split the java-build-test-runner into two specialized agents that call predefined scripts instead of constructing Maven/Gradle commands via LLM. The scripts handle working directory, build tool detection, and command execution. Agents only parse output and create structured JSON.
+
+  This is a MUCH better approach! Here's why:
+
+  ✅ Advantages
+
+  1. Eliminates ALL command violations
+    - No more cd && chains
+    - No absolute paths
+    - No command construction errors
+  2. Fixes environmental issues
+    - Scripts handle Windows/Linux differences
+    - Proper output capture (no empty output issue)
+    - Consistent behavior across platforms
+  3. Faster execution
+    - No LLM trial-and-error with commands
+    - Direct script execution
+    - Agent focuses on parsing only
+  4. Better separation of concerns
+    - Compile checks ≠ test execution
+    - Different use cases, different agents
+  5. Easier to test and debug
+    - Scripts testable independently
+    - Clear boundaries
+
+  📋 Proposed Architecture
+
+  Agent 1: maven-compile
+
+  Purpose: Quick compilation check only
+
+  Behavior:
+  Input: (no parameters needed, just trigger)
+  ↓
+  Calls: ./scripts/maven-compile.sh (or .cmd on Windows)
+  ↓
+  Script:
+    - Finds project root (pom.xml/build.gradle)
+    - Detects Maven/Gradle
+    - Runs: mvn compile OR gradle compileJava
+    - Exits with return code
+  ↓
+  Agent:
+    - Checks exit code
+    - Parses output for errors
+    - Returns JSON
+
+  Output:
+  {
+    "RESULT": "OK" | "ERROR",
+    "duration": "2.3s",
+    "errors": [...]  // only if RESULT=ERROR
+  }
+
+  When to use:
+  - After code changes (main agent or other subagent)
+  - Before running tests
+  - Quick validation
+
+  ---
+  Agent 2: maven-tester
+
+  Purpose: Run tests and/or calculate coverage
+
+  Behavior:
+  Input: mode = "test" | "coverage"
+  ↓
+  Calls: ./scripts/maven-test.sh [mode]
+  ↓
+  Script:
+    - Finds project root
+    - Detects Maven/Gradle
+    - If mode=test: mvn test
+    - If mode=coverage: mvn verify (triggers JaCoCo)
+    - Exits with return code
+  ↓
+  Agent:
+    - Checks exit code
+    - Parses surefire-reports/
+    - Parses JaCoCo XML (if coverage mode)
+    - Returns JSON
+
+  Output:
+  {
+    "RESULT": "OK" | "ERROR" | "COVERAGE_REPORT",
+    "testsRun": 7,
+    "testsPassed": 3,
+    "testsFailed": 4,
+    "duration": "6.2s",
+    "failedTests": [...],
+    "coverage": {...}  // only if mode=coverage
+  }
+
+  ---
+  🛠️ Script Design
+
+  Example: maven-compile.sh
+
+  #!/bin/bash
+  set -e  # Exit on error
+
+  # 1. Find project root
+  find_project_root() {
+      current_dir="$(pwd)"
+      while [[ "$current_dir" != "/" ]]; do
+          if [[ -f "$current_dir/pom.xml" ]] || [[ -f "$current_dir/build.gradle" ]] || [[ -f "$current_dir/build.gradle.kts" ]]; then
+              echo "$current_dir"
+              return 0
+          fi
+          current_dir="$(dirname "$current_dir")"
+      done
+      echo "Error: No pom.xml or build.gradle found" >&2
+      exit 1
+  }
+
+  # 2. Detect build tool
+  detect_build_tool() {
+      local root="$1"
+      if [[ -f "$root/pom.xml" ]]; then
+          if [[ -x "$root/mvnw" ]]; then
+              echo "mvnw"
+          else
+              echo "mvn"
+          fi
+      elif [[ -f "$root/build.gradle" ]] || [[ -f "$root/build.gradle.kts" ]]; then
+          if [[ -x "$root/gradlew" ]]; then
+              echo "gradlew"
+          else
+              echo "gradle"
+          fi
+      else
+          echo "Error: Unknown build tool" >&2
+          exit 1
+      fi
+  }
+
+  # 3. Execute
+  PROJECT_ROOT=$(find_project_root)
+  BUILD_TOOL=$(detect_build_tool "$PROJECT_ROOT")
+
+  cd "$PROJECT_ROOT" || exit 1
+
+  case "$BUILD_TOOL" in
+      mvnw)
+          ./mvnw compile
+          ;;
+      mvn)
+          mvn compile
+          ;;
+      gradlew)
+          ./gradlew compileJava
+          ;;
+      gradle)
+          gradle compileJava
+          ;;
+  esac
+
+  exit $?
+
+  Example: maven-test.sh
+
+  #!/bin/bash
+  set -e
+
+  MODE="${1:-test}"  # test or coverage
+
+  # ... same find_project_root and detect_build_tool ...
+
+  PROJECT_ROOT=$(find_project_root)
+  BUILD_TOOL=$(detect_build_tool "$PROJECT_ROOT")
+
+  cd "$PROJECT_ROOT" || exit 1
+
+  case "$BUILD_TOOL" in
+      mvnw)
+          if [[ "$MODE" == "coverage" ]]; then
+              ./mvnw verify
+          else
+              ./mvnw test
+          fi
+          ;;
+      mvn)
+          if [[ "$MODE" == "coverage" ]]; then
+              mvn verify
+          else
+              mvn test
+          fi
+          ;;
+      gradlew)
+          if [[ "$MODE" == "coverage" ]]; then
+              ./gradlew test jacocoTestReport
+          else
+              ./gradlew test
+          fi
+          ;;
+      gradle)
+          if [[ "$MODE" == "coverage" ]]; then
+              gradle test jacocoTestReport
+          else
+              gradle test
+          fi
+          ;;
+  esac
+
+  exit $?
+
+  ---
+  📝 Agent Specifications (Simplified)
+
+  maven-compile.md
+
+  ---
+  name: maven-compile
+  description: "Fast compilation validator. Calls predefined script to compile Java project. Returns OK or compilation errors. Use before running tests or after code changes."
+  tools: Bash, Grep, Read
+  model: haiku
+  ---
+
+  ## ROLE
+  You are a compilation validator. You execute a predefined script and parse its output.
+
+  ## EXECUTION
+  1. Run: `./scripts/maven-compile.sh` (or .cmd on Windows)
+  2. Capture exit code and output
+  3. Parse output for errors
+  4. Return JSON
+
+  ## OUTPUT
+  ```json
+  {
+    "RESULT": "OK" | "ERROR",
+    "duration": "extracted from output",
+    "errors": []  // only if compilation failed
+  }
+
+  RULES
+
+  - You MUST NOT construct Maven/Gradle commands
+  - You MUST call the predefined script only
+  - You MUST parse output, not modify code
+  - You MUST return valid JSON
+
+  ### `maven-tester.md`
+
+  ```markdown
+  ---
+  name: maven-tester
+  description: "Test executor and coverage analyzer. Calls predefined script to run tests. Parses surefire reports and JaCoCo coverage."
+  tools: Bash, Grep, Read, Glob
+  model: haiku
+  ---
+
+  ## ROLE
+  You are a test executor. You run a predefined script and parse test reports.
+
+  ## EXECUTION
+  1. Determine mode from user request: "test" or "coverage"
+  2. Run: `./scripts/maven-test.sh [mode]`
+  3. Capture exit code
+  4. Parse surefire-reports/ for test results
+  5. If coverage mode: parse JaCoCo XML
+  6. Return JSON
+
+  ## OUTPUT
+  Same as current java-build-test-runner
+
+  ## RULES
+  - You MUST NOT construct Maven/Gradle commands
+  - You MUST call the predefined script only
+  - You MUST parse reports, not modify code
+  - You MUST return valid JSON
+
+  ---
+  🚀 Implementation Plan
+
+  Would you like me to:
+
+  1. ✅ Create the two agent specifications (maven-compile.md, maven-tester.md)
+  2. ✅ Create the shell scripts (maven-compile.sh, maven-test.sh)
+  3. ✅ Create Windows equivalents (maven-compile.cmd, maven-test.cmd)
+  4. ✅ Update the main agent description to reference these subagents
+  5. ✅ Create test cases to verify the scripts work
+
+  Let me know which parts you'd like me to implement!

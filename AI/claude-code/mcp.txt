@@ -1,0 +1,3 @@
+
+GitLab:
+> claude mcp add --scope user --transport http GitLab https://gitlab.adesso-group.com/api/v4/mcp

@@ -1,0 +1,15 @@
+claude-plugins-official
+	anthropics/claude-plugins-official
+	44 available • 4 installed • Updated 9.1.2026
+		Installed plugins (4):
+		- jdtls-lsp
+		  Java language server (Eclipse JDT.LS) for code intelligence
+		- gitlab
+		  GitLab DevOps platform integration. Manage repositories, merge requests, CI/CD pipelines, issues, and wikis. Full access to GitLab's
+		  comprehensive DevOps lifecycle tools.
+		- atlassian
+		  Connect to Atlassian products including Jira and Confluence. Search and create issues, access documentation, manage sprints, and
+		  integrate your development workflow with Atlassian's collaboration tools.
+		- serena
+		  Semantic code analysis MCP server providing intelligent code understanding, refactoring suggestions, and codebase navigation through
+		  language server protocol integration.
