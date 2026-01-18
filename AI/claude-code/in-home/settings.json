@@ -33,10 +33,18 @@
       "Bash(mvnw:*)",
       "Bash(mvnw.cmd:*)",
       "Bash(java:*)",
-      "Bash(javap:*)"
+      "Bash(javap:*)",
+      "mcp__GitLab__get_merge_request",
+      "mcp__GitLab__get_merge_request_commits",
+      "mcp__GitLab__get_merge_request_diffs",
+      "mcp__GitLab__get_workitem_notes"
     ]
   },
   "enabledPlugins": {
     "jdtls-lsp@claude-plugins-official": true
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "input=$(cat); cwd=$(echo \"$input\" | jq -r '.workspace.current_dir // .cwd'); git_branch=$(cd \"$cwd\" 2>/dev/null && git -c core.useReplaceRefs=false branch --show-current 2>/dev/null || echo \"no-git\"); output_style=$(echo \"$input\" | jq -r '.output_style.name // \"normal\"'); thinking=$(echo \"$input\" | jq -r 'if .alwaysThinkingEnabled == true or (.model.id | contains(\"opus\")) then \"thinking\" else \"standard\" end // \"unknown\"'); printf \"\\033[36m%s\\033[0m \\033[33m[\\033[0m\\033[32m%s\\033[0m\\033[33m]\\033[0m \\033[35m%s\\033[0m \\033[90m(%s)\\033[0m\" \"$(basename \"$cwd\")\" \"$git_branch\" \"$output_style\" \"$thinking\""
   }
 }
