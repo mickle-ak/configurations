@@ -20,6 +20,8 @@
       "Bash(tree:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
+      "Bash(tail:*)",
+      "Bash(head:*)",
       "Bash(curl:*)",
       "Bash(echo:*)",
       "Bash(test:*)",
