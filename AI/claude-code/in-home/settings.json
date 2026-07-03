@@ -4,14 +4,9 @@
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-6",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-6",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5",
-    "ENABLE_LSP_TOOL": "1"
+    "ENABLE_LSP_TOOL": "1",
+    "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1"
   },
-
-  "model": "opusplan",
-  "alwaysThinkingEnabled": true,
-  "autoUpdatesChannel": "latest",
-  "autoApprove": true,
-
   "permissions": {
     "allow": [
       "Bash(ls:*)",
@@ -36,10 +31,19 @@
       "Bash(mvnw.cmd:*)",
       "Bash(java:*)",
       "Bash(javap:*)",
+      "WebSearch",
       "mcp__GitLab__get_merge_request",
       "mcp__GitLab__get_merge_request_commits",
       "mcp__GitLab__get_merge_request_diffs",
       "mcp__GitLab__get_workitem_notes"
     ]
-  }
+  },
+  "model": "opusplan",
+  "enabledPlugins": {
+    "jdtls-lsp@claude-plugins-official": true
+  },
+  "alwaysThinkingEnabled": true,
+  "autoUpdatesChannel": "latest",
+  "autoApprove": true,
+  "theme": "light"
 }

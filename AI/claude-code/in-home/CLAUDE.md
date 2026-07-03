@@ -37,3 +37,9 @@
 ### Key Directories
 - **Projects:** `C:/projects/adesso/`, `C:\projects\my `
 - **Claude Config:** `C:/Users/kiselev/.claude/`
+
+## Bash commands
+
+Assume all Bash commands are executed from the current project root.
+Do not prepend `cd <project>` unless you intentionally need to work in another directory.
+Prefer relative paths over absolute paths.
